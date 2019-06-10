@@ -9,7 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 
-export_file_url = 'https://drive.google.com/uc?export=download&confirm=6lEY&id=1UTGwe7QSPYaidntNe2PoI1HYYWP_8277'
+export_file_url = 'https://drive.google.com/uc?export=download&id=1rUWfYdMelj-ZpFyFA6H63fwXjQMrp3pz'
 #'https://www.dropbox.com/s/6bgq8t6yextloqp/export.pkl?raw=1'
 export_file_name = 'export.pkl'
 
