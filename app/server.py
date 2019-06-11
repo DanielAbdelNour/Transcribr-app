@@ -3,6 +3,7 @@ import asyncio
 import uvicorn
 from fastai import *
 from fastai.vision import *
+from .tfmr_extensions import *
 from io import BytesIO
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
@@ -12,7 +13,6 @@ from starlette.staticfiles import StaticFiles
 export_file_url = 'https://drive.google.com/uc?export=download&confirm=Bm7a&id=1yBYq7QLaNxqdxCnayTeTbCh90fjITGdP'
 export_file_name = 'export.pkl'
 
-# classes = ['black', 'grizzly', 'teddys']
 path = Path(__file__).parent
 
 app = Starlette()
