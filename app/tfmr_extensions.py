@@ -1,8 +1,6 @@
-import Levenshtein as Lev
-from .torch_core import *
-from .data_block import *
-from .basic_train import *
-from .callback import *
+from fastai.torch_core import *
+from fastai.data_block import *
+from fastai.callback import *
 
 def plot_loss_change(sched, sma=1, n_skip=20, y_lim=(-0.01,0.01)):
     """
@@ -69,47 +67,16 @@ class CER(Callback):
         self.errors, self.total = 0, 0
     
     def on_batch_end(self, last_output, last_target, **kwargs):
-        error,size = self._cer(last_output, last_target)
+        error,size = 0,0 #self._cer(last_output, last_target)
         self.errors += error
         self.total += size
     
     def on_epoch_end(self, last_metrics, **kwargs):
         return add_metrics(last_metrics, self.errors/self.total)
 
-    def _cer(self, preds, targs):
-        bs,sl = targs.size()
-        
-        res = torch.argmax(preds, dim=2)
-        error = 0
-        for i in range(bs):
-            p = self._char_label_text(res[i])   #.replace(' ', '')
-            t = self._char_label_text(targs[i]) #.replace(' ', '')
-            error += Lev.distance(t, p)/len(t)
-        return error, bs
-
-    def _char_label_text(self, pred):
-        ints = to_np(pred).astype(int)
-        nonzero = ints[np.nonzero(ints)]
-        return ''.join([self.itos[i] for i in nonzero])
-
-def rshift(tgt, bos_token=1):
-    "Shift y to the right by prepending token"
-    bos = torch.zeros((tgt.size(0),1)).type_as(tgt) + bos_token
-    return torch.cat((bos, tgt[:,:-1]), dim=-1)
-
 def subsequent_mask(size):
     attn_shape = torch.ones((size,size), dtype=torch.int)
     return torch.tril(attn_shape).unsqueeze(0)
-
-class TeacherForce(LearnerCallback):
-    def __init__(self, learn:Learner, bos_token:int=1):
-        super().__init__(learn)
-        self.bos_token = bos_token
-        
-    def on_batch_begin(self, last_input, last_target, **kwargs):
-        s = rshift(last_target, self.bos_token).long()
-        mask = subsequent_mask(s.size(-1))
-        return {'last_input':(last_input, s, mask), 'last_target':last_target}
 
 # ModelData
 def custom_collater(samples:BatchSamples, pad_idx:int=0):
