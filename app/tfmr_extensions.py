@@ -72,7 +72,7 @@ class SequenceItem(ItemBase):
     def __init__(self,data,vocab): self.data,self.vocab = data,vocab        
     def __str__(self): return self.textify(self.data)
     def __hash__(self): return hash(str(self))
-    def textify(self, data): return ''.join([self.vocab[i] for i in data])
+    def textify(self, data): return ''.join([self.vocab[i] for i in data[:-1]])
 
 class ArrayProcessor(PreProcessor):
     "Convert df column (string of ints) into np.array"
