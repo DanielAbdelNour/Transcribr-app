@@ -10,33 +10,34 @@ body {
     margin: auto;
     padding: 10px 50px;
     text-align: center;
-    font-size: 14px;
+    font-size: 18px;
 }
 
 .title {
-    font-size: 30px;
-    margin-top: 1em;
-    margin-bottom: 1em;
+    font-size: 50px;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
     color: #262626;
 }
 
 .content {
-    margin-top: 10em;
+    margin-top: 3em;
 }
 
 .analyze {
-    margin-top: 5em;
+    margin-top: 3em;
 }
 
 .upload-label {
     padding: 10px;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .result-label {
-    margin-top: 0.5em;
+    margin-top: 1em;
     padding: 10px;
-    font-size: 13px;
+    /*font-size: 16px;*/
+    white-space: pre-wrap;
 }
 
 button.choose-file-button {
@@ -45,7 +46,7 @@ button.choose-file-button {
     border-radius: 2px;
     background-color: #ffffff;
     border: solid 1px #7052CB;
-    font-size: 13px;
+    font-size: 14px;
     color: #7052CB;
 }
 
@@ -55,7 +56,7 @@ button.analyze-button {
     border: solid 1px #7052CB;
     border-radius: 2px;
     background-color: #7052CB;
-    font-size: 13px;
+    font-size: 14px;
     color: #ffffff;
 }
 
