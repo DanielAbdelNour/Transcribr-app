@@ -1,40 +1,72 @@
-<html lang='en'>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset='utf-8'>
-  <link rel='stylesheet' href='../static/style.css'>
+
+  <!-- Basic Page Needs
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta charset="utf-8">
+  <title>Transcribr</title>
+  <meta name="description" content="Handwritten image transcription">
+  <meta name="author" content="Adam Schiller">
+
+  <!-- Mobile Specific Metas
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- FONT
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+
+  <!-- CSS
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link rel="stylesheet" href="../static/normalize.css">
+  <link rel="stylesheet" href="../static/skeleton.css">
+
+  <!-- Scripts
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
   <script src='../static/client.js'></script>
+
+
+  <!-- Favicon
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link rel="icon" type="image/png" href="../static/favicon.png">
+
 </head>
 <body>
-<div>
-  <div class='center'>
-    <div class='title'>Transcribr</div>
-    <p>
-      Transcribe handwriting images into text!!
-    </p>
-    <div class='content'>
-      <div class='no-display'>
-        <input id='file-input'
-               class='no-display'
-               type='file'
-               name='file'
-               accept='image/*'
-               onchange='showPicked(this)'>
+
+  <!-- Primary Page Layout
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <div class="container">
+    <div class="row">
+      <div class='header'>
+        <h1>Transcribr</h1>
+        <div class='sub-header'>handwritten images to text</div>
       </div>
-      <button class='choose-file-button' type='button' onclick='showPicker()'>Select Image</button>
-      <div class='upload-label'>
-        <label id='upload-label'>No file chosen</label>
+    </div>
+
+    <div class="row">
+      <div class='center'>
+        <input id='file-input' class='no-display' type='file' name='file' accept='image/*' onchange='showPicked(this)'>
+        <button class='choose-file-button' type='button' onclick='showPicker()'>Select Image</button>
+        <label id='upload-label' class='no-display'>No file chosen</label>
+        <div>
+          <img id='image-picked' class='no-display' alt='Chosen Image' height='200'>
+        </div>
       </div>
-      <div>
-        <img id='image-picked' class='no-display' alt='Chosen Image' height='200'>
-      </div>
-      <div class='analyze'>
-        <button id='analyze-button' class='analyze-button' type='button' onclick='analyze()'>Analyze</button>
-      </div>
-      <div class='result-label'>
-        <label id='result-label'></label>
+    </div>
+
+    <div class="row">
+      <div class='center'>
+        <button id='analyze-button' class='button-primary' type='button' onclick='analyze()'>Analyze</button>
+        <div class="no-display" id="spinner">
+          <div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+        </div>
+        <pre id='result-label'></pre>
       </div>
     </div>
   </div>
-</div>
+
+<!-- End Document
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
 </body>
 </html>

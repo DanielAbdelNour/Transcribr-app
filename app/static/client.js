@@ -6,6 +6,7 @@ function showPicker() {
 
 function showPicked(input) {
   el("upload-label").innerHTML = input.files[0].name;
+  el("upload-label").className = "";
   var reader = new FileReader();
   reader.onload = function(e) {
     el("image-picked").src = e.target.result;
@@ -17,13 +18,12 @@ function showPicked(input) {
 function analyze() {
   var uploadFiles = el("file-input").files;
   if (uploadFiles.length !== 1) alert("Please select a file to analyze!");
-
   el("analyze-button").innerHTML = "Analyzing...";
-  el("result-label").innerHTML = ""
+  el("result-label").innerHTML = "";
+  el("spinner").className = "";
   var xhr = new XMLHttpRequest();
   var loc = window.location;
-  xhr.open("POST", `${loc.protocol}//${loc.hostname}:${loc.port}/analyze`,
-    true);
+  xhr.open("POST", `${loc.protocol}//${loc.hostname}:${loc.port}/analyze`, true);
   xhr.onerror = function() {
     alert(xhr.responseText);
   };
@@ -33,6 +33,7 @@ function analyze() {
       el("result-label").innerHTML = response["result"];
     }
     el("analyze-button").innerHTML = "Analyze";
+    el("spinner").className = "no-display";
   };
 
   var fileData = new FormData();
