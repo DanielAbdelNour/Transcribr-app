@@ -1,57 +1,22 @@
 from fastai.torch_core import *
 from fastai.data_block import *
-from fastai.callback import *
+# from fastai.callback import *
 
 ### Custom OCR transformer code ###
 # Loss and Metrics
 class LabelSmoothing(nn.Module):
-    def __init__(self, smoothing=0.1):
-        super(LabelSmoothing, self).__init__()
-        self.confidence = 1.0 - smoothing
-        self.smoothing = smoothing
-        
-    def forward(self, pred, target):
-        pred,targ = self._prep(pred, target)
-        pred = F.log_softmax(pred, dim=-1)  # need this for KLDivLoss
-        true_dist = pred.data.clone()
-        true_dist.fill_(self.smoothing / pred.size(1))                  # fill with 0.0012
-        true_dist.scatter_(1, targ.data.unsqueeze(1), self.confidence)  # [0.0012, 0.0012, 0.90, 0.0012]
-        return F.kl_div(pred, true_dist, reduction='sum')/bs
+    pass
 
-    def _prep(self, input, target):
-        "equalize input/target sl; combine bs/sl dimensions"
-        bs,tsl = target.shape
-        _,sl,vocab_len = input.shape
-            
-        # F.pad( front,back for dimensions: 1,0,2 )
-        if sl>tsl: target = F.pad(target, (0,sl-tsl))
-        # if tsl>sl: target = target[:,:sl]   # this should only be used when testing for small seq_lens
-        if tsl>sl: input = F.pad(input, (0,0,0,tsl-sl))     # not ideal => adds 82 logits all 0s...
-            
-        targ = target.contiguous().view(-1).long()
-        pred = input.contiguous().view(-1, vocab_len)
-        return pred, targ
+class CER(nn.Module):
+    pass
 
-class CER(Callback):
-    def __init__(self, itos):
-        super().__init__()
-        self.name = 'cer'
-        self.itos = itos
-
-    def on_epoch_begin(self, **kwargs):
-        self.errors, self.total = 0, 0
-    
-    def on_batch_end(self, last_output, last_target, **kwargs):
-        error,size = 0,0 #self._cer(last_output, last_target)
-        self.errors += error
-        self.total += size
-    
-    def on_epoch_end(self, last_metrics, **kwargs):
-        return add_metrics(last_metrics, self.errors/self.total)
+class TeacherForce(nn.Module):
+    pass
 
 def subsequent_mask(size):
     attn_shape = torch.ones((size,size), dtype=torch.int)
     return torch.tril(attn_shape).unsqueeze(0)
+
 
 # ModelData
 def custom_collater(samples:BatchSamples, pad_idx:int=0):
@@ -106,23 +71,11 @@ class SequenceList(ItemList):
         return torch.argmax(pred, dim=-1)
 
 # Transformer Modules
-class LayerNorm(nn.Module):
-    def __init__(self, features, eps=1e-6):
-        super(LayerNorm, self).__init__()
-        self.a_2 = nn.Parameter(torch.ones(features))
-        self.b_2 = nn.Parameter(torch.zeros(features))
-        self.eps = eps
-
-    def forward(self, x):
-        mean = x.mean(-1, keepdim=True)
-        std = x.std(-1, keepdim=True)
-        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-
 class SublayerConnection(nn.Module):
     "A residual connection followed by a layer norm.  Note: (for code simplicity) norm is first."
     def __init__(self, size, dropout):
         super(SublayerConnection, self).__init__()
-        self.norm = LayerNorm(size)
+        self.norm = nn.LayerNorm(size, eps=1e-4)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, sublayer):
@@ -136,7 +89,7 @@ class Encoder(nn.Module):
     def __init__(self, layer, N):
         super(Encoder, self).__init__()
         self.layers = clones(layer, N)
-        self.norm = LayerNorm(layer.size)
+        self.norm = nn.LayerNorm(layer.size, eps=1e-4)
         
     def forward(self, x):
         for layer in self.layers:
@@ -161,7 +114,7 @@ class Decoder(nn.Module):
     def __init__(self, layer, N):
         super(Decoder, self).__init__()
         self.layers = clones(layer, N)
-        self.norm = LayerNorm(layer.size)
+        self.norm = nn.LayerNorm(layer.size, eps=1e-4)
         
     def forward(self, x, src, tgt_mask=None):
         for layer in self.layers:
@@ -188,7 +141,7 @@ def attention(query, key, value, mask=None, dropout=None):
     depth = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(depth)
     if mask is not None:
-        scores = scores.masked_fill(mask == 0, -1e9)    
+        scores = scores.masked_fill(mask == 0, -1e4)
     p_attn = F.softmax(scores, dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
@@ -206,15 +159,19 @@ class SingleHeadedAttention(nn.Module):
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
         return self.linears[-1](x)
 
+class GeLU(nn.Module):
+    def forward(self, x): return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, d_model, dropout=0.2):
         super(PositionwiseFeedForward, self).__init__()
         self.w_1 = nn.Linear(d_model, d_model*4)
         self.w_2 = nn.Linear(d_model*4, d_model)
         self.dropout = nn.Dropout(dropout)
-
+        self.activation = GeLU() #nn.ReLU(inplace=True)
+        
     def forward(self, x):
-        return self.w_2(self.dropout(F.relu(self.w_1(x))))
+        return self.w_2(self.dropout(self.activation(self.w_1(x))))
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=2000):
@@ -229,26 +186,21 @@ class PositionalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe.unsqueeze_(0)
-
         self.register_buffer('pe', pe) 
         
     def forward(self, x):
         x = x + self.pe[:, :x.size(1)]
         return self.dropout(x)
 
-class ResnetBase(nn.Module):
-    def __init__(self, em_sz):
-        super().__init__()
-        
-        slices = {128: -4, 256: -3, 512: -2}
-        s = slices[em_sz]
-        
-        net = models.resnet34(True)
-        modules = list(net.children())[:s]
-        self.base = nn.Sequential(*modules)
-        
+class Embeddings(nn.Module):
+    def __init__(self, d_model, vocab):
+        super(Embeddings, self).__init__()
+        self.lut = nn.Embedding(vocab, d_model)
+        self.d_model = d_model
+
     def forward(self, x):
-        return self.base(x)
+        return self.lut(x) * math.sqrt(self.d_model)
+
 
 # Custom Architecture
 class EncoderDecoder(nn.Module):
@@ -275,27 +227,15 @@ class ResnetBase(nn.Module):
     def __init__(self, em_sz, d_model):
         super().__init__()
         
-        slices = {128: -4, 256: -3, 512: -2}
-        s = slices[em_sz]
-        
-        net = f(True)
-        modules = list(net.children())[:s]
+        net = models.resnet34(True)
+        modules = list(net.children())[:-3]
         self.base = nn.Sequential(*modules)
         self.linear = nn.Linear(em_sz, d_model)
         
     def forward(self, x):
         x = self.base(x).flatten(2,3).permute(0,2,1)
-        x = self.linear(x) * math.sqrt(self.linear.out_features)
+        x = self.linear(x) * 8
         return x
-
-class Embeddings(nn.Module):
-    def __init__(self, d_model, vocab):
-        super(Embeddings, self).__init__()
-        self.lut = nn.Embedding(vocab, d_model)
-        self.d_model = d_model
-
-    def forward(self, x):
-        return self.lut(x) * math.sqrt(self.d_model)
 
 def make_full_model(vocab, d_model=512, N=4, drops=0.2):
     c = deepcopy
@@ -306,7 +246,7 @@ def make_full_model(vocab, d_model=512, N=4, drops=0.2):
         Encoder(EncoderLayer(d_model, c(attn), c(ff), drops), N),
         Decoder(DecoderLayer(d_model, c(attn), c(attn), c(ff), drops), N),
         nn.Sequential(
-            Embeddings(d_model, vocab), PositionalEncoding(d_model, drops, 5000)
+            Embeddings(d_model, vocab), PositionalEncoding(d_model, drops, 2000)
         ),
         nn.Linear(d_model, vocab)
     )

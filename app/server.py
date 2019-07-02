@@ -12,7 +12,7 @@ from starlette.staticfiles import StaticFiles
 
 # docker build -t fastai-v3 . && docker run --rm -it -p 5000:5000 -v /Users/adamschiller/Projects/DeepLearning/fastai-v3/:/var/app fastai-v3
 
-export_file_url = 'https://www.dropbox.com/s/ea8jkv7016xj8pr/export.pkl?dl=1'
+export_file_url = 'https://www.dropbox.com/s/t86n4z92ywvq49p/export.pkl?dl=1'
 export_file_name = 'export.pkl'
 
 path = Path(__file__).parent
