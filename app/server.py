@@ -15,6 +15,9 @@ from starlette.staticfiles import StaticFiles
 export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1' #'https://www.dropbox.com/s/t86n4z92ywvq49p/export.pkl?dl=1'
 export_file_name = 'export.pkl'
 
+spm_file_url = 'https://www.dropbox.com/s/scaz74vg31zmqlo/spm_full_10k.model?dl=1'
+spm_file_name = 'spm_full_10k.model'
+
 path = Path(__file__).parent
 
 app = Starlette()
@@ -32,6 +35,7 @@ async def download_file(url, dest):
 
 
 async def setup_learner():
+    await download_file(spm_file_url, path / 'models' / spm_file_name)
     await download_file(export_file_url, path / 'models' / export_file_name)
     try:
         learn = load_learner(path / 'models', export_file_name)

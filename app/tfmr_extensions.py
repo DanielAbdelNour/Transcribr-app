@@ -1,6 +1,9 @@
 from fastai.torch_core import *
 from fastai.data_block import *
+from fastai.text.data import TokenizeProcessor
+from fastai.text.transform import BaseTokenizer
 import sentencepiece as spm
+
 # from fastai.callback import *
 
 ### Custom OCR transformer code ###
@@ -24,9 +27,13 @@ def subsequent_mask(size):
 
 
 # ModelData
-tfms = get_transforms(do_flip=False, max_zoom=1, max_rotate=2, max_warp=0.1, max_lighting=0.5)
+#tfms = get_transforms(do_flip=False, max_zoom=1, max_rotate=2, max_warp=0.1, max_lighting=0.5)
 
 def force_gray(image): return image.convert('L').convert('RGB')
+
+def rm_useless_spaces(t:str) -> str:
+    "Remove multiple spaces in `t`."
+    return re.sub(' {2,}', ' ', t)
 
 def add_cap_tokens(text):  # before encode
     re_caps = re.compile(r'[A-Z]+')
