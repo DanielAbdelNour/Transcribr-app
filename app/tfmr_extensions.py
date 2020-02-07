@@ -1,6 +1,6 @@
 from fastai.torch_core import *
 from fastai.data_block import *
-from fastai.text.data import TokenizeProcessor
+from fastai.text.data import TokenizeProcessor, Text
 from fastai.text.transform import BaseTokenizer
 import sentencepiece as spm
 
@@ -19,11 +19,11 @@ class TeacherForce(nn.Module):
 
 def rshift(tgt, bos_token=1):
     "Shift y to the right by prepending token"
-    bos = torch.zeros((tgt.size(0),1), device=device).type_as(tgt) + bos_token
+    bos = torch.zeros((tgt.size(0),1)).type_as(tgt) + bos_token
     return torch.cat((bos, tgt[:,:-1]), dim=-1)
 
 def subsequent_mask(size):
-    return torch.tril(torch.ones((1,size,size), device=device).byte())
+    return torch.tril(torch.ones((1,size,size)).byte())
 
 
 # ModelData
@@ -324,7 +324,7 @@ class Img2Seq(nn.Module):
             self.eval()
             with torch.no_grad():
                 feats = self.transformer.encoder(self.adaptor(self.img_enc(src)))
-                tgt = torch.ones((src.size(0),1), dtype=torch.long, device=device)
+                tgt = torch.ones((src.size(0),1), dtype=torch.long)
 
                 res = []
                 for i in progress_bar(range(seq_len)):
