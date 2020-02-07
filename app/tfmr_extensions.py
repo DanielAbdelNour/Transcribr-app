@@ -1,5 +1,6 @@
 from fastai.torch_core import *
 from fastai.data_block import *
+import sentencepiece as spm
 # from fastai.callback import *
 
 ### Custom OCR transformer code ###
@@ -13,62 +14,109 @@ class CER(nn.Module):
 class TeacherForce(nn.Module):
     pass
 
+def rshift(tgt, bos_token=1):
+    "Shift y to the right by prepending token"
+    bos = torch.zeros((tgt.size(0),1), device=device).type_as(tgt) + bos_token
+    return torch.cat((bos, tgt[:,:-1]), dim=-1)
+
 def subsequent_mask(size):
-    attn_shape = torch.ones((size,size), dtype=torch.int)
-    return torch.tril(attn_shape).unsqueeze(0)
+    return torch.tril(torch.ones((1,size,size), device=device).byte())
 
 
 # ModelData
-def custom_collater(samples:BatchSamples, pad_idx:int=0):
-    "Function that collect samples and pads end of labels."
+tfms = get_transforms(do_flip=False, max_zoom=1, max_rotate=2, max_warp=0.1, max_lighting=0.5)
+
+def force_gray(image): return image.convert('L').convert('RGB')
+
+def add_cap_tokens(text):  # before encode
+    re_caps = re.compile(r'[A-Z]+')
+    return re_caps.sub(_replace_caps, text)
+    
+def _replace_caps(m):
+    tok = '[UP]' if m.end()-m.start() > 1 else '[MAJ]'
+    return tok + m.group().lower()
+
+def remove_cap_tokens(text):  # after decode
+    text = re.sub(r'\[UP\]\w+', lambda m: m.group()[4:].upper(), text)  #cap entire word
+    text = re.sub(r'\[MAJ\]\w?', lambda m: m.group()[5:].upper(), text) #cap first letter
+    return text
+
+def label_collater(samples:BatchSamples, pad_idx:int=0):
+    "Function that collect samples and pads ends of labels."
     data = to_data(samples)
     ims, lbls = zip(*data)
     imgs = torch.stack(list(ims))
-    if len(data) is 1:
+    if len(data) is 1 and lbls[0] is 0:   #predict
         labels = torch.zeros(1,1).long()
-        return imgs, labels
+        return imgs, labels    
     max_len = max([len(s) for s in lbls])
-    labels = torch.zeros(len(data), max_len).long() + pad_idx
+    labels = torch.zeros(len(data), max_len+1).long() + pad_idx  # add 1 to max_len to account for bos token
     for i,lbl in enumerate(lbls):
         labels[i,:len(lbl)] = torch.from_numpy(lbl)  #padding end    
     return imgs, labels
 
-class SequenceItem(ItemBase):
-    def __init__(self,data,vocab): self.data,self.vocab = data,vocab        
-    def __str__(self): return self.textify(self.data)
-    def __hash__(self): return hash(str(self))
-    def textify(self, data): return ''.join([self.vocab[i] for i in data[:-1]])
+class SPTokenizer(BaseTokenizer):
+    "Wrapper around a SentncePiece tokenizer to make it a `BaseTokenizer`."
+    def __init__(self, model_prefix:str):
+        self.tok = spm.SentencePieceProcessor()
+        self.tok.Load(f'{model_prefix}.model')
+        self.tok.SetEncodeExtraOptions("eos")
 
-class ArrayProcessor(PreProcessor):
-    "Convert df column (string of ints) into np.array"
-    def __init__(self, ds:ItemList=None): None
-    def process_one(self,item): return np.array(item.split(), dtype=np.int64)
-    def process(self, ds): super().process(ds)
+    def tokenizer(self, t:str) -> List[str]:
+        return self.tok.EncodeAsIds(t)[1:]
+      
+class CustomTokenizer():
+    def __init__(self, tok_func:Callable, model_prefix:str):
+        self.tok_func, self.model_prefix = tok_func,model_prefix
+        self.pre_rules = [rm_useless_spaces, add_cap_tokens]
         
-class ItosProcessor(PreProcessor):
-    def __init__(self, ds:ItemList=None): self.itos = ds.itos
-    def process(self, ds:ItemList): ds.itos = self.itos
+    def __repr__(self) -> str:
+        res = f'Tokenizer {self.tok_func.__name__} using `{self.model_prefix}` model with the following rules:\n'
+        for rule in self.pre_rules: res += f' - {rule.__name__}\n'
+        return res        
+
+    def process_one(self, t:str, tok:BaseTokenizer) -> List[str]:
+        "Processe one text `t` with tokenizer `tok`."
+        for rule in self.pre_rules: t = rule(t)  
+        toks = tok.tokenizer(t) 
+        return toks 
+                                                                         
+    def process_all(self, texts:Collection[str]) -> List[List[str]]: 
+        "Process a list of `texts`." 
+        tok = self.tok_func(self.model_prefix)
+        return [self.process_one(t, tok) for t in texts]
         
-class SequenceList(ItemList):
-    _processor = [ItosProcessor, ArrayProcessor]
-    
-    def __init__(self, items:Iterator, itos:List[str]=None, **kwargs):
+class SPList(ItemList):
+    def __init__(self, items:Iterator, **kwargs):
         super().__init__(items, **kwargs)
-        self.itos = itos
-        self.copy_new += ['itos']
-        self.c = len(self.items)
-
-    def get(self, i):
-        o = super().get(i)
-        return SequenceItem(o, self.itos)
-
-    def reconstruct(self,t):
-        o = t.numpy()
-        o = o[np.nonzero(o)]
-        return SequenceItem(o, self.itos)
+        model_prefix = self.path/'spm_full_10k'
+        cust_tok = CustomTokenizer(SPTokenizer, model_prefix)
+        self.processor = TokenizeProcessor(tokenizer=cust_tok, include_bos=False)
+        self.sp = spm.SentencePieceProcessor()
+        self.sp.Load(str(model_prefix)+'.model')
+        self.sp.SetDecodeExtraOptions("bos:eos")
+        
+        self.pad_idx = 0
+        self.copy_new += ['sp']
     
-    def analyze_pred(self,pred):
-        return torch.argmax(pred, dim=-1)
+    def get(self, i):
+        o = self.items[i]
+        return Text(o, self.textify(o))
+    
+    def reconstruct(self, t:Tensor):
+        nonzero_idxs = (t != self.pad_idx).nonzero()
+        idx_min = 0
+        idx_max = nonzero_idxs.max() if len(nonzero_idxs) > 0 else 0
+        return Text(t[idx_min:idx_max+1], self.textify(t[idx_min:idx_max+1]))
+
+    def analyze_pred(self, pred:Tensor):
+        return torch.argmax(pred, dim=-1)        
+    
+    def textify(self, ids):
+        if isinstance(ids, torch.Tensor): ids = ids.tolist()
+        st = self.sp.DecodeIds(ids)
+        st = remove_cap_tokens(st)
+        return st
 
 # Transformer Modules
 class SublayerConnection(nn.Module):
@@ -147,20 +195,26 @@ def attention(query, key, value, mask=None, dropout=None):
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn
 
-class SingleHeadedAttention(nn.Module):
-    def __init__(self, d_model, dropout=0.2):
-        super(SingleHeadedAttention, self).__init__()
+class MultiHeadedAttention(nn.Module):
+    def __init__(self, d_model, h=8, dropout=0.2):
+        super(MultiHeadedAttention, self).__init__()
+        assert d_model % h == 0
+        self.d_k = d_model // h        # assume d_v always equals d_k
+        self.h = h
         self.linears = clones(nn.Linear(d_model, d_model), 4)
         self.attn = None
         self.dropout = nn.Dropout(dropout)
         
-    def forward(self, query, key, value, mask=None):        
-        query, key, value = [l(x) for l, x in zip(self.linears, (query, key, value))]
-        x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
+    def forward(self, q, k, v, mask=None):
+        if mask is not None: mask = mask.unsqueeze(1)
+        bs = q.size(0)
+        # 1) Do all the linear projections in batch from d_model => h x d_k 
+        q, k, v = [l(x).view(bs, -1, self.h, self.d_k).transpose(1,2) for l, x in zip(self.linears, (q, k, v))]
+        # 2) Apply attention on all the projected vectors in batch. 
+        x, self.attn = attention(q, k, v, mask=mask, dropout=self.dropout)
+        # 3) "Concat" using a view and apply a final linear. 
+        x = x.transpose(1, 2).contiguous().view(bs, -1, self.h * self.d_k)
         return self.linears[-1](x)
-
-class GeLU(nn.Module):
-    def forward(self, x): return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
 
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, d_model, dropout=0.2):
@@ -171,121 +225,108 @@ class PositionwiseFeedForward(nn.Module):
         self.activation = GeLU() #nn.ReLU(inplace=True)
         
     def forward(self, x):
-        return self.w_2(self.dropout(self.activation(self.w_1(x))))
-
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=2000):
-        super(PositionalEncoding, self).__init__()
-        
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0.0, max_len).unsqueeze(1)
-        log_increment = math.log(1e4) / d_model
-        div_term = torch.exp(torch.arange(0.0, d_model, 2) * -log_increment)  
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe.unsqueeze_(0)
-        self.register_buffer('pe', pe) 
-        
-    def forward(self, x):
-        x = x + self.pe[:, :x.size(1)]
-        return self.dropout(x)
-
-class Embeddings(nn.Module):
-    def __init__(self, d_model, vocab):
-        super(Embeddings, self).__init__()
-        self.lut = nn.Embedding(vocab, d_model)
-        self.d_model = d_model
-
-    def forward(self, x):
-        return self.lut(x) * math.sqrt(self.d_model)
+        return self.w_2(self.dropout(F.gelu(self.w_1(x))))
 
 
 # Custom Architecture
-class EncoderDecoder(nn.Module):
-    def __init__(self, encoder, decoder, tgt_embed, generator):
-        super(EncoderDecoder, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
-        self.tgt_embed = tgt_embed
-        self.generator = generator
+class LearnedPositionalEmbeddings(nn.Module):
+    def __init__(self, d_model, vocab, dropout=0.1):
+        super(LearnedPositionalEmbeddings, self).__init__()
+        self.nl_tok  = 4
+        self.d_model = d_model
+
+        self.embed = nn.Embedding(vocab, d_model, 0)
+        self.rows = nn.Embedding(15, d_model//2, 0)
+        self.w_cols = nn.Embedding(60, d_model//2, 0)
         
-    def forward(self, src, tgt, tgt_mask=None):
-        return self.decode(self.encode(src), tgt, tgt_mask)
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        rows,cols = self.encode_spatial_positions(x)
+        
+        row_t = self.rows(rows)            
+        col_t = self.w_cols(torch.clamp(cols, max=self.w_cols.num_embeddings-1))  # clamp to max column value
+        pos_enc = torch.cat((row_t, col_t), dim=-1)
+                
+        x = self.embed(x)
+        x = (x + pos_enc) * math.sqrt(self.d_model)
+        return self.dropout(x)
     
-    def encode(self, src):
-        return self.encoder(src)
-    
-    def decode(self, src, tgt, tgt_mask=None):
-        return self.decoder(self.tgt_embed(tgt), src, tgt_mask)
-    
+    def encode_spatial_positions(self, x):
+        rows,cols = torch.zeros_like(x),torch.zeros_like(x)
+        for ii,batch in enumerate(x.unbind()):
+            nls = torch.nonzero(batch==self.nl_tok).flatten()
+            last = torch.nonzero(batch).flatten()[-1][None]
+            splits = torch.cat([nls,last])
+
+            p=0
+            for i,n in enumerate(splits, start=1):
+                rows[ii,p:n+1] = i
+                cols[ii,p:n+1] = torch.arange(1,n-p+2)
+                p = n+1
+        return rows,cols
+
+class ResnetBase(nn.Module):
+    def __init__(self, em_sz):
+        super().__init__()
+        
+        slices = {128: -4, 256: -3, 512: -2}
+        s = slices[em_sz]
+
+        net = models.resnet18(True)
+        modules = list(net.children())[:s]
+        self.base = nn.Sequential(*modules)                  #32x32 : 256
+        
+    def forward(self, x):
+        return self.base(x)
+
+class Adaptor(nn.Module):
+    def forward(self, x):
+        x = x.flatten(2,3).permute(0,2,1)
+        return x.mul(8)
+
+class WordTransformer(nn.Module):
+    def __init__(self, encoder, decoder, embeddings, generator):
+        super(WordTransformer, self).__init__()
+        self.encoder = encoder
+        self.w_decoder = decoder
+        self.embed = embeddings
+        self.generator = generator
+            
+    def forward(self, src, tgt):
+        tgt = rshift(tgt, 1).long()
+        mask = subsequent_mask(tgt.size(-1))
+        return self.w_decoder(self.embed(tgt), self.encoder(src), mask)
+
     def generate(self, outs):
         return self.generator(outs)
 
-class ResnetBase(nn.Module):
-    def __init__(self, em_sz, d_model):
-        super().__init__()
-        
-        net = models.resnet34(True)
-        modules = list(net.children())[:-3]
-        self.base = nn.Sequential(*modules)
-        self.linear = nn.Linear(em_sz, d_model)
-        
-    def forward(self, x):
-        x = self.base(x).flatten(2,3).permute(0,2,1)
-        x = self.linear(x) * 8
-        return x
-
-def make_full_model(vocab, d_model=512, N=4, drops=0.2):
-    c = deepcopy
-    attn = SingleHeadedAttention(d_model)
-    ff = PositionwiseFeedForward(d_model, drops)
-
-    model = EncoderDecoder(
-        Encoder(EncoderLayer(d_model, c(attn), c(ff), drops), N),
-        Decoder(DecoderLayer(d_model, c(attn), c(attn), c(ff), drops), N),
-        nn.Sequential(
-            Embeddings(d_model, vocab), PositionalEncoding(d_model, drops, 2000)
-        ),
-        nn.Linear(d_model, vocab)
-    )
-        
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
-                    
-    return model
-
 class Img2Seq(nn.Module):
-    def __init__(self, img_encoder, transformer, seq_len=500):
+    def __init__(self, img_encoder, adaptor, transformer):
         super(Img2Seq, self).__init__()
         self.img_enc = img_encoder
+        self.adaptor = adaptor
         self.transformer = transformer
-        self.seq_len = seq_len
         
-    def forward(self, src, tgt=None, tgt_mask=None): 
-        # inference
-        if tgt is None:
+    def forward(self, src, tgt=None, seq_len=300):
+        if tgt is not None:   #train
+            feats = self.adaptor(self.img_enc(src))
+            outs = self.transformer(feats, tgt)
+            return self.transformer.generate(outs)
+        else:                 #predict
+            self.eval()
             with torch.no_grad():
-                feats = self.transformer.encode(self.img_enc(src))
-                bs = src.size(0)
-                tgt = torch.ones((bs,1), dtype=torch.long)
+                feats = self.transformer.encoder(self.adaptor(self.img_enc(src)))
+                tgt = torch.ones((src.size(0),1), dtype=torch.long, device=device)
 
                 res = []
-                for i in progress_bar(range(self.seq_len)):
-                    mask = subsequent_mask(tgt.size(-1))
-                    dec_outs = self.transformer.decode(feats, tgt, mask)
+                for i in progress_bar(range(seq_len)):
+                    emb = self.transformer.embed(tgt)
+                    #mask = subsequent_mask(tgt.size(-1))
+                    dec_outs = self.transformer.w_decoder(emb, feats)#, mask)
                     prob = self.transformer.generate(dec_outs[:,-1])
                     res.append(prob)
                     pred = torch.argmax(prob, dim=-1, keepdim=True)
                     if (pred==0).all(): break
                     tgt = torch.cat([tgt,pred], dim=-1)
-                out = torch.stack(res).transpose(1,0).contiguous()
-                
-        #training        
-        else:
-            feats = self.img_enc(src)
-            dec_outs = self.transformer(feats, tgt, tgt_mask)    # ([bs, sl, d_model])
-            out = self.transformer.generate(dec_outs)            # ([bs, sl, vocab])
-        return out
+                return torch.stack(res).transpose(1,0).contiguous()
