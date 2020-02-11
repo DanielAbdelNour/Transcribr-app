@@ -1,1 +1,3 @@
-app/export.pkl
+*.DS_Store
+app/models/*
+__pycache__

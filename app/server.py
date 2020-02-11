@@ -12,7 +12,7 @@ from starlette.staticfiles import StaticFiles
 
 # docker build -t fastai-v3 . && docker run --rm -it -p 5000:5000 -v /Users/adamschiller/Projects/DeepLearning/fastai-v3/:/var/app fastai-v3
 
-export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1' #'https://www.dropbox.com/s/t86n4z92ywvq49p/export.pkl?dl=1'
+export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1'
 export_file_name = 'export.pkl'
 
 spm_file_url = 'https://www.dropbox.com/s/scaz74vg31zmqlo/spm_full_10k.model?dl=1'
@@ -62,12 +62,16 @@ async def homepage(request):
     html_file = path / 'view' / 'index.html'
     return HTMLResponse(html_file.open().read())
 
-
 @app.route('/analyze', methods=['POST'])
 async def analyze(request):
     img_data = await request.form()
-    img_bytes = await (img_data['file'].read())
-    img = open_image(BytesIO(img_bytes))
+
+    try:
+        img = open_image(path / 'static' / 'images' / img_data['filename'])
+    except KeyError:
+        img_bytes = await (img_data['file'].read())
+        img = open_image(BytesIO(img_bytes))
+
     prediction = learn.predict(img)[0]
     return JSONResponse({'result': str(prediction)})
 

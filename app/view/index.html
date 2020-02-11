@@ -43,14 +43,19 @@
         <div class='sub-header'>handwritten images to text</div>
       </div>
     </div>
-
+    <div class='row'>
+      <div class='center'>
+        <button type='button' onclick='randImage()'>Select Random Image</button>
+      </div>
+    </div>
     <div class="row">
       <div class='center'>
         <input id='file-input' class='no-display' type='file' name='file' accept='image/*' onchange='showPicked(this)'>
-        <button class='choose-file-button' type='button' onclick='showPicker()'>Select Image</button>
+        <button type='button' onclick='showPicker()'>Upload Custom Image</button>
         <label id='upload-label' class='no-display'>No file chosen</label>
         <div>
-          <img id='image-picked' class='no-display' alt='Chosen Image' height='200'>
+          <img id='image-picked' class='no-display' alt='Chosen Image' height='250'>
+          <p id='test-label' class='no-display'><strong>Note: </strong>This image is selected from the test dataset and was not used for training.</p>
         </div>
       </div>
     </div>
