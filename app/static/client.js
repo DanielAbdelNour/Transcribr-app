@@ -50,7 +50,7 @@ function analyze() {
   }
 
   el("analyze-button").innerHTML = "Analyzing...";
-  el("result-label").innerHTML = "<em>Please be patient.<br>This may take up to 30 seconds.<br>Reading is hard :/</em>";
+  el("result-label").innerHTML = "<em>Please be patient.<br>This may take up to 90 seconds.<br>Reading is hard :/</em>";
   el("spinner").className = "";
   var xhr = new XMLHttpRequest();
   var loc = window.location;
