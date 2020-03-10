@@ -12,8 +12,14 @@ from starlette.staticfiles import StaticFiles
 
 # docker build -t fastai-v3 . && docker run --rm -it -p 5000:5000 -v /Users/adamschiller/Projects/DeepLearning/fastai-v3/:/var/app fastai-v3
 
-export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1'
-export_file_name = 'export.pkl'
+# export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1'
+# export_file_name = 'export.pkl'
+
+export_file_url = 'https://www.dropbox.com/s/si9fyw4fjcqhy3i/graph_export.pth?dl=1'
+export_file_name = 'graph_export.pth'
+
+data_file_url = 'https://www.dropbox.com/s/xap4bq47868nub9/data.pkl?dl=1'
+data_file_name = 'data.pkl'
 
 spm_file_url = 'https://www.dropbox.com/s/scaz74vg31zmqlo/spm_full_10k.model?dl=1'
 spm_file_name = 'spm_full_10k.model'
@@ -37,8 +43,9 @@ async def download_file(url, dest):
 async def setup_learner():
     await download_file(spm_file_url, path / 'models' / spm_file_name)
     await download_file(export_file_url, path / 'models' / export_file_name)
+    await download_file(data_file_url, path / 'models' / data_file_name)
     try:
-        learn = load_learner(path / 'models', export_file_name)
+        learn = load_graph(path / 'models', export_file_name, data_file_name)
         return learn
     except RuntimeError as e:
         if len(e.args) > 0 and 'CPU-only machine' in e.args[0]:
