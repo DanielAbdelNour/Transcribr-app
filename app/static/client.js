@@ -15,7 +15,6 @@ function randImage() {
   if (idx > -1) {
     imgArray.splice(idx, 1);
   }
-  console.log(imgArray)
 
   var num = Math.floor( Math.random() * imgArray.length );
   var img = imgArray[ num ];
