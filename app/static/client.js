@@ -6,8 +6,17 @@ function showPicker() {
 
 function randImage() {
   window.event.preventDefault();
-  var imgArray = ['a01-122.png', 'a03-014.png', 'b04-162.png', 'f04-093.png', 'g06-042j.png', 'j01-045.png',
-                  'l01-173.png', 'l03-004.png', 'p02-105.png', 'p03-040.png', 'r02-081.png'];
+  const imgArray = ['a01-122.png', 'a03-014.png', 'b04-162.png', 'f04-093.png', 'g06-042j.png', 'j01-045.png',
+                    'l01-173.png', 'l03-004.png', 'p02-105.png', 'p03-040.png', 'r02-081.png'];
+
+  // subtract current image from imgArray before selecting so as not to randomly select current image
+  var curImg = el("upload-label").innerHTML;
+  var idx = imgArray.indexOf(curImg);
+  if (idx > -1) {
+    imgArray.splice(idx, 1);
+  }
+  console.log(imgArray)
+
   var num = Math.floor( Math.random() * imgArray.length );
   var img = imgArray[ num ];
 
@@ -50,7 +59,7 @@ function analyze() {
   }
 
   el("analyze-button").innerHTML = "Analyzing...";
-  el("result-label").innerHTML = "<em>Please be patient.<br>This may take up to 90 seconds.<br>Reading is hard :/</em>";
+  el("result-label").innerHTML = "<em>Please be patient.<br>This may take up to a minute.<br>Reading is hard :/</em>";
   el("spinner").className = "";
   var xhr = new XMLHttpRequest();
   var loc = window.location;
