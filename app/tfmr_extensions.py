@@ -3,6 +3,7 @@ from fastai.data_block import *
 from fastai.basic_train import Learner
 from fastai.text.data import TokenizeProcessor, Text
 from fastai.text.transform import BaseTokenizer
+from fastai.vision.image import open_image
 import sentencepiece as spm
 
 

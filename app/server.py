@@ -1,8 +1,6 @@
 import aiohttp
 import asyncio
 import uvicorn
-from fastai import *
-from fastai.vision import *
 from tfmr_extensions import *
 from io import BytesIO
 from starlette.applications import Starlette
@@ -12,11 +10,21 @@ from starlette.staticfiles import StaticFiles
 
 # docker build -t fastai-v3 . && docker run --rm -it -p 5000:5000 -v /Users/adamschiller/Projects/DeepLearning/fastai-v3/:/var/app fastai-v3
 
+# standard eager model
 # export_file_url = 'https://www.dropbox.com/s/j4hwkwoef0szzvk/export.pkl?dl=1'
 # export_file_name = 'export.pkl'
 
-export_file_url = 'https://www.dropbox.com/s/si9fyw4fjcqhy3i/graph_export.pth?dl=1'
-export_file_name = 'graph_export.pth'
+# jit graph
+# export_file_url = 'https://www.dropbox.com/s/si9fyw4fjcqhy3i/graph_export.pth?dl=1'
+# export_file_name = 'graph_export.pth'
+
+# dynamically quantized (tfmr only) jit graph
+# export_file_url = 'https://www.dropbox.com/s/txpbuxy3l1plo0f/quantized_graph_export.pth?dl=1'
+# export_file_name = 'quantized_graph_export.pth'
+
+# dynamic + static quantization (img_enc + tfmr) jit graph
+export_file_url = 'https://www.dropbox.com/s/7i6ooxervdelznq/fully_quantized_graph_export.pth?dl=1'
+export_file_name = 'fully_quantized_graph_export.pth'
 
 data_file_url = 'https://www.dropbox.com/s/xap4bq47868nub9/data.pkl?dl=1'
 data_file_name = 'data.pkl'
