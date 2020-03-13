@@ -8,10 +8,6 @@ import sentencepiece as spm
 
 
 # ModelData
-#tfms = get_transforms(do_flip=False, max_zoom=1, max_rotate=2, max_warp=0.1, max_lighting=0.5)
-
-def force_gray(image): return image.convert('L').convert('RGB')
-
 def rm_useless_spaces(t:str) -> str:
     "Remove multiple spaces in `t`."
     return re.sub(' {2,}', ' ', t)
@@ -28,20 +24,6 @@ def remove_cap_tokens(text):  # after decode
     text = re.sub(r'\[UP\]\w+', lambda m: m.group()[4:].upper(), text)  #cap entire word
     text = re.sub(r'\[MAJ\]\w?', lambda m: m.group()[5:].upper(), text) #cap first letter
     return text
-
-def label_collater(samples:BatchSamples, pad_idx:int=0):
-    "Function that collect samples and pads ends of labels."
-    data = to_data(samples)
-    ims, lbls = zip(*data)
-    imgs = torch.stack(list(ims))
-    if len(data) is 1 and lbls[0] is 0:   #predict
-        labels = torch.zeros(1,1).long()
-        return imgs, labels    
-    max_len = max([len(s) for s in lbls])
-    labels = torch.zeros(len(data), max_len+1).long() + pad_idx  # add 1 to max_len to account for bos token
-    for i,lbl in enumerate(lbls):
-        labels[i,:len(lbl)] = torch.from_numpy(lbl)  #padding end    
-    return imgs, labels
 
 class SPTokenizer(BaseTokenizer):
     "Wrapper around a SentncePiece tokenizer to make it a `BaseTokenizer`."
