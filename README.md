@@ -1,15 +1,20 @@
-# Starter for deploying [fast.ai](https://www.fast.ai) models on [Render](https://render.com)
+# Transcribr - handwritten text recognition
 
-This repo can be used as a starting point to deploy [fast.ai](https://github.com/fastai/fastai) models on Render.
+The app described here is up at http://transcribr.net. Test it out for yourself!
 
-The sample app described here is up at https://fastai-v3.onrender.com. Test it out with bear images!
-
-You can test your changes locally by installing Docker and using the following command:
+Test changes locally by installing Docker and using the following command:
 
 ```
-docker build -t fastai-v3 . && docker run --rm -it -p 5000:5000 fastai-v3
+docker build --rm -t transcribr-v1 . && docker run --rm -it -p 5000:5000 transcribr-v1
 ```
 
-The guide for production deployment to Render is at https://course.fast.ai/deployment_render.html.
+Much of the code here is based on the fastai guide for production deployment to Render: https://course.fast.ai/deployment_render.html.
 
-Please use [Render's fast.ai forum thread](https://forums.fast.ai/t/deployment-platform-render/33953) for questions and support.
+<!-- 
+--rm: Remove intermediate containers after a successful build
+-t:   name and tag
+
+-it:  creates an interactive bash shell in the container
+-p:   Publish a container’s port(s) to the host
+-v:   Bind mount a volume for hotreload    # -v /Users/adamschiller/Projects/DeepLearning/Transcribr-app/:/var/app
+ -->

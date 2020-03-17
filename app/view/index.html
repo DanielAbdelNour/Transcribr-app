@@ -46,39 +46,51 @@
   <!-- Primary Page Layout
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
   <div class="container">
-    <div class="row">
-      <div class='header'>
-        <h1>Transcribr</h1>
-        <div class='sub-header'>handwritten images to text</div>
+    <div class="content">
+      <div class="row">
+        <div class='header'>
+          <h1>Transcribr</h1>
+          <div class='sub-header'>handwritten images to text</div>
+        </div>
       </div>
-    </div>
-    <div class='row'>
-      <div class='center'>
-        <button type='button' onclick='randImage()'>Select Random Image</button>
+      <div class='row'>
+        <div class='center'>
+          <button type='button' onclick='randImage()'>Select Random Image</button>
+        </div>
       </div>
-    </div>
-    <div class="row">
-      <div class='center'>
-        <input id='file-input' class='no-display' type='file' name='file' accept='image/*' onchange='showPicked(this)'>
-        <button type='button' onclick='showPicker()'>Upload Custom Image</button>
-        <label id='upload-label' class='no-display'>No file chosen</label>
-        <div>
-          <img id='image-picked' class='no-display' alt='Chosen Image' height='250'>
-          <p id='test-label' class='no-display'><strong>Note: </strong>This image is selected from the test dataset and was not used for training.</p>
+      <div class="row">
+        <div class='center'>
+          <input id='file-input' class='no-display' type='file' name='file' accept='image/*' onchange='showPicked(this)'>
+          <button type='button' onclick='showPicker()'>Upload Custom Image</button>
+          <label id='upload-label' class='no-display'>No file chosen</label>
+          <div>
+            <img id='image-picked' class='no-display' alt='Chosen Image' height='250'>
+            <p id='test-label' class='no-display'><strong>Note: </strong>This image is selected from the test dataset and was not used for training.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class='center'>
+          <button id='analyze-button' class='button-primary' type='button' onclick='analyze()'>Analyze</button>
+          <div class="no-display" id="spinner">
+            <div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+          </div>
+          <pre id='result-label'></pre>
         </div>
       </div>
     </div>
 
-    <div class="row">
-      <div class='center'>
-        <button id='analyze-button' class='button-primary' type='button' onclick='analyze()'>Analyze</button>
-        <div class="no-display" id="spinner">
-          <div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
-        </div>
-        <pre id='result-label'></pre>
-      </div>
+    <div class='footer'>
+      <p>
+        <a href="https://medium.com/@madA_reverse/transcribr-9861c8de2f79" target="_blank">architecture</a> | 
+        <a href="https://github.com/ahs8w/Handwriting/blob/master/1--Transcribr.ipynb" target="_blank">code</a> | 
+        <a href="https://ahs8w.github.io" target="_blank">author</a>
+      </p>
     </div>
   </div>
+
+  
 
 <!-- End Document
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->

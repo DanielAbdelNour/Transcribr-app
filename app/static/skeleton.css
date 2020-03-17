@@ -523,6 +523,21 @@ body {
   text-align: center;
 }
 
+/*sticky footer*/
+.content {
+  min-height: calc(100vh - 10rem);
+}
+.footer {
+  padding-top: 5rem;
+  text-align: center;
+}
+
+.footer a {
+  font-size: .9em;
+  text-decoration: none;
+  margin: 0 2rem;
+}
+
 .sub-header {
   color: gray;
   font-size: 2.3rem;
